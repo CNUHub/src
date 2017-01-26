@@ -1,0 +1,23 @@
+resliceimg p02987tr1A myresliced -t XDz20XDx+10XDy-15XPx10XPy+5XPz2X -interpolate -np 31p
+InvCombined =
+         0.8923018      0.37259912      0.27489793      -30.944678
+        -0.33682409     0.92541658      -0.18728113      23.933594
+        -0.27869754     0.064064833     0.95125124       12.360409
+                 0               0               0               1
+
+file dimensions: 128 by 128 by 31 pixels (x,y,z)
+voxel dimensions: 3.129320e+00 by 3.129320e+00 by 3.375000e+00 (x,y,z)
+ 
+E*cubic standard coordinates=reslice coordinates
+E=
+[8.923018e-01 3.725991e-01 2.548870e-01 -3.094468e+01
+-3.368241e-01 9.254166e-01 -1.736482e-01 2.393359e+01
+-2.786976e-01 6.406484e-02 8.820058e-01 1.250600e+01
+0.000000e+00 0.000000e+00 0.000000e+00 1.000000e+00]
+ 
+Comment: manualreslice
+ 
+The following are derived from the transform matrix
+Assumes angles between +/- 90 degrees
+pitch=-10.000000 degrees roll=14.999999 degrees yaw=20.000000 degrees
+x_shift=10.000000 pixels y_shift=5.000000 pixels z_shift=2.000000 pixels

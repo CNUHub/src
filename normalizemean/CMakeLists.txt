@@ -1,0 +1,3 @@
+ADD_EXECUTABLE(normalizemean normalizemean.cc)
+TARGET_LINK_LIBRARIES(normalizemean psyimg)
+INSTALL(TARGETS normalizemean RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)

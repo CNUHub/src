@@ -1,0 +1,3 @@
+ADD_EXECUTABLE(psyimgheader psyimgheader.cc)
+TARGET_LINK_LIBRARIES(psyimgheader psyimg)
+INSTALL(TARGETS psyimgheader RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)

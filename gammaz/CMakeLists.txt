@@ -1,0 +1,4 @@
+enable_language(Fortran)
+ADD_EXECUTABLE(gammaz gammaz.f)
+TARGET_LINK_LIBRARIES(gammaz psyimg)
+INSTALL(TARGETS gammaz RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)

@@ -1,0 +1,3 @@
+ADD_EXECUTABLE(statimgchange statimgchange.cc)
+TARGET_LINK_LIBRARIES(statimgchange psyimg)
+INSTALL(TARGETS statimgchange RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)

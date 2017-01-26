@@ -1,0 +1,3 @@
+ADD_EXECUTABLE(multiimgmath multiimgmath.cc)
+TARGET_LINK_LIBRARIES(multiimgmath psyimg)
+INSTALL(TARGETS multiimgmath RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)

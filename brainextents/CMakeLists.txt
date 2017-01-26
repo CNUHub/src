@@ -1,0 +1,3 @@
+ADD_EXECUTABLE(brainextents brainextents.cc)
+TARGET_LINK_LIBRARIES(brainextents psyimg)
+INSTALL(TARGETS brainextents RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)

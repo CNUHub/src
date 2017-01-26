@@ -1,0 +1,3 @@
+ADD_EXECUTABLE(ecat7headeredit ecat7headeredit.cc)
+TARGET_LINK_LIBRARIES(ecat7headeredit psyimg)
+INSTALL(TARGETS ecat7headeredit RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)

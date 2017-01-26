@@ -1,0 +1,3 @@
+ADD_EXECUTABLE(analyzeheader analyzeheader.cc)
+TARGET_LINK_LIBRARIES(analyzeheader psyimg)
+INSTALL(TARGETS analyzeheader RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)

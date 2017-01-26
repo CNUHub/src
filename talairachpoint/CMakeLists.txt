@@ -1,0 +1,3 @@
+ADD_EXECUTABLE(talairachpoint talairachpoint.cc)
+TARGET_LINK_LIBRARIES(talairachpoint psyimg)
+INSTALL(TARGETS talairachpoint RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
