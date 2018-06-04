@@ -1,3 +1,8 @@
+# editor backups, temporary
+*~
+*.swp
+*.#*
+
 # Prerequisites
 *.d
 
@@ -14,7 +19,7 @@
 *.ilk
 *.map
 *.exp
-
+ 
 # Precompiled Headers
 *.gch
 *.pch
