@@ -14,7 +14,7 @@ ENDIF(NOT BIGENDIAN)
 
 #add_definitions(-DNO_IRINT -DUSES_LITTLE_ENDIAN)
 #other defines code uses: -DSVR4 -DUSE_MATLAB -DRANDOM_UNDEFINED -Dlint
-SET(CMAKE_INSTALL_PREFIX /Users/jtlee/cnuhub)
+#SET(CMAKE_INSTALL_PREFIX /usr/local/cnu)
 include_directories (${CMAKE_INSTALL_PREFIX}/include)
 LINK_DIRECTORIES(${CMAKE_INSTALL_PREFIX}/lib)
 add_subdirectory(psyimg)
