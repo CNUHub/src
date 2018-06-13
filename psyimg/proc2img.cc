@@ -70,6 +70,9 @@ void psy2imglnk::initpsy2imglnk(psyimg *psy1imgptr, psyimg *psy2imgptr,
 // combine inputs to set description
   setdescription(combine_comments(in1psyimg->getdescription(),
 				  in2psyimg->getdescription()));
+// set spatial transform from first input image
+  setspatialtransform(in1psyimg->getspatialtransform(),in1psyimg->getspatialtransformcode());
+  setspatialtransform2(in1psyimg->getspatialtransform2(),in1psyimg->getspatialtransformcode2());
 }
 
 psyimg *psy2imglnk::getlink1()

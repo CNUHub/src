@@ -52,7 +52,6 @@ psyimg *psynewinfile(string filename, psyfileclass *infileclass,
   psytype localintype;
   psyfileclass localinfileclass;
   int *localinfileclassinfo=NULL;
-
   if(isniftifile(filename)) {
     localinfileclass=niftifileclass;
     psyimgptr=(psyimg *)new niftifile(filename, "r");
