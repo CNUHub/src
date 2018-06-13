@@ -72,6 +72,5 @@ add_subdirectory(onedfilter)
 add_subdirectory(psyrandom)
 add_subdirectory(shiftimg)
 add_subdirectory(umri2analyze)
-add_subdirectory(edheader)
 add_subdirectory(gammaz)
 
