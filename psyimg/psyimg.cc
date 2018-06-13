@@ -17,8 +17,6 @@ const char* imagespacenames[] = {"unknown_space", "scanner_anatomical_space",
 
 psyimg::psyimg()
 {
-  spatialtransform=NULL; spatialtransformcode=unknown_space;
-  spatialtransform2=NULL; spatialtransformcode2=unknown_space;
   initpsyimg(0, 0, 0, 0, psyuchar);
 }
 
@@ -29,8 +27,6 @@ psyimg::psyimg(int xdim, int ydim, int zdim, int idim,
 	       double xres, double yres, double zres,
 	       double ires, double wres)
 {
-  spatialtransform=NULL; spatialtransformcode=unknown_space;
-  spatialtransform2=NULL; spatialtransformcode2=unknown_space;
   initpsyimg(xdim,ydim,zdim,idim,pixeltype,
 	     xorig,yorig,zorig,iorig,skippixels,
 	     xres, yres, zres, ires, wres);
@@ -186,6 +182,12 @@ void psyimg::initpsyimg(int xdim, int ydim, int zdim, int idim,
   setres(xres, yres, zres, ires);
   setwordres(wres);
   setorient(psynoorient);
+  setpatientid("");
+  setdate();
+  settime();
+  setdescription("");
+  spatialtransform=NULL; spatialtransformcode=unknown_space;
+  spatialtransform2=NULL; spatialtransformcode2=unknown_space;
 }
 
 void psyimg::setsizeendinc(int xdim, int ydim, int zdim, int idim)
@@ -595,6 +597,8 @@ void psyimglnk::initpsyimglnk(psyimg *psyimgptr,
     settime(inputpsyimg->gettime());
     setdescription(inputpsyimg->getdescription());
     setorient(inputpsyimg->getorient());
+    setspatialtransform(inputpsyimg->getspatialtransform(),inputpsyimg->getspatialtransformcode());
+    setspatialtransform2(inputpsyimg->getspatialtransform2(),inputpsyimg->getspatialtransformcode2());
   }
 }
 
