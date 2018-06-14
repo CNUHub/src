@@ -2,6 +2,50 @@
 #include <stdio.h>
 #include <math.h>
 
+class log10_img : public proc1img {
+  void convertpixel(char *in, psytype intype, char *out, psytype outtype);
+  double threshmin;
+  double threshminvalue;
+ public:
+  log10_img(psyimg *psyimgptr, psytype pixeltype);
+  void initlog10_img(psyimg *psyimgptr, psytype pixeltype);
+  void output_tree(ostream *out) {proc1img::output_tree(out);*out<<"::log10_img";};
+  void set_min_thresh(double threshmin, double threshmin_value=0);
+};
+
+log10_img::log10_img(psyimg *psyimgptr, psytype pixeltype)
+{
+  initlog10_img(psyimgptr, pixeltype);
+}
+
+void log10_img::initlog10_img(psyimg *psyimgptr, psytype pixeltype)
+{
+  initproc1img(psyimgptr, pixeltype);
+  threshmin=0;
+  threshminvalue= -1;
+}
+
+void log10_img::set_min_thresh(double threshmin, double threshmin_value)
+{
+  if(threshmin < 0) {
+    output_tree(&cerr);
+    cerr<<":log10_img::set_min_thresh - error threshmin < 0\n";
+    exit(1);
+  }
+  threshmin=threshmin;
+  threshminvalue=threshmin_value;
+}
+
+void log10_img::convertpixel(char *in, psytype intype, char *out,
+			   psytype outtype)
+{
+  double dpixel;
+  type2double(in, intype, (char *)&dpixel);
+  if(dpixel < threshmin)dpixel=threshminvalue;
+  else dpixel = log10(dpixel);
+  pixeltypechg((char *)&dpixel, psydouble, out, outtype);
+}
+
 class square_img : public proc1img {
   void convertpixel(char *in, psytype intype, char *out, psytype outtype);
  public:
@@ -144,6 +188,35 @@ void fabs_img::convertpixel(char *in, psytype intype, char *out,
   pixeltypechg((char *)&dpixel, psydouble, out, outtype);
 }
 
+class power_img : public proc1img {
+  void convertpixel(char *in, psytype intype, char *out, psytype outtype);
+  double power;
+ public:
+  power_img(psyimg *psyimgptr, double power, psytype pixeltype=psynotype);
+  void initpower_img(psyimg *psyimgptr, double power, psytype pixeltype=psynotype);
+  void output_tree(ostream *out) {proc1img::output_tree(out);*out<<"::power_img";};
+};
+
+power_img::power_img(psyimg *psyimgptr, double power, psytype pixeltype)
+{
+  initpower_img(psyimgptr, power, pixeltype);
+}
+
+void power_img::initpower_img(psyimg *psyimgptr, double power, psytype pixeltype)
+{
+  initproc1img(psyimgptr, pixeltype);
+  power_img::power = power;
+}
+
+void power_img::convertpixel(char *in, psytype intype, char *out,
+			   psytype outtype)
+{
+  double dpixel;
+  type2double(in, intype, (char *)&dpixel);
+  dpixel = pow(dpixel, power);
+  pixeltypechg((char *)&dpixel, psydouble, out, outtype);
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -152,6 +225,9 @@ int main(int argc, char *argv[])
   int do_square=0;
   int do_abs=0;
   int do_inv=0;
+  int do_log10=0;
+  int do_power=0;
+  double power=1.0;
   double scale_factor=1.0;
   int auto_scale=0;
   int inputed_scale_factor=0;
@@ -176,7 +252,7 @@ int main(int argc, char *argv[])
   for(int i=0; i<argc; i++) {
     if(strcmp(argv[i], "-help") == 0 || argc<3) {
       cout <<"Usage: "<<argv[0]<<" infile outfile"<<'\n';
-      cout <<"       [-sqrt | -square | -abs | -inv]\n";
+      cout <<"       [-sqrt | -square | -abs | -inv | -log10 | -pow power]\n";
       cout <<"       [-auto | -s scale_factor] [-set[_new_quantification]]\n";
       cout <<"       [-ge min_thresh | -gf min_thresh_factor [-minv min_value]]\n";
       cout <<"       [-le max_thresh [-maxv max_value]]\n";
@@ -190,6 +266,14 @@ int main(int argc, char *argv[])
     else if(strcmp("-square", argv[i])==0) do_square=1;
     else if(strcmp("-abs", argv[i])==0) do_abs=1;
     else if(strcmp("-inv", argv[i])==0) do_inv=1;
+    else if(strcmp("-log10", argv[i])==0) do_log10=1;
+    else if((strcmp("-pow", argv[i])==0) && ((i+1)<argc)){
+      if(sscanf(argv[++i],"%lf", &power)!=1) {
+	cerr<<argv[0]<<": invalid power="<<argv[i]<<'\n';
+	exit(1);
+      }
+      do_power=1;
+    }
     else if((strcmp("-auto", argv[i])==0) && !auto_scale &&
 	    !inputed_scale_factor)auto_scale=1;
     else if((strcmp("-s", argv[i])==0) && ((i+1)<argc)){
@@ -255,7 +339,7 @@ int main(int argc, char *argv[])
     }
   }
 // only one operation allowed
-  if((do_sqrt+do_square+do_abs+do_inv) > 1) {
+  if((do_sqrt+do_square+do_abs+do_inv+do_sqrt) > 1) {
     cerr << argv[0] << ": only one operation allowed\n";
     exit(1);
   }
@@ -278,6 +362,8 @@ int main(int argc, char *argv[])
   else if(do_square)operatedimg=(psyimg *)new square_img(imgptr, psydouble);
   else if(do_abs)operatedimg=(psyimg *)new fabs_img(imgptr);
   else if(do_inv)operatedimg=(psyimg *)new inv_img(imgptr, psydouble);
+  else if(do_log10)operatedimg=(psyimg *)new log10_img(imgptr, psydouble);
+  else if(do_power)operatedimg=(psyimg *)new power_img(imgptr, power, psydouble);
   else {
     cerr << argv[0] << ": requires one operation\n";
     exit(1);

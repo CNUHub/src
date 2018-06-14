@@ -592,7 +592,88 @@ void concatimgs::initconcatimgs(psyimg *psy1imgptr, psyimg *psy2imgptr,
   initpsy2imglnk(in1psyimg, in2psyimg, in1psyimg->gettype(),
 		 &newdim, NULL, &newres);
 // avoid concatenating too many descriptions
-  setdescription("concatimgs");
+//  setdescription("concatimgs");
+// 12/12/2017 jtlee -- better name then concatimgs without growing out of bounds
+  string s1=in1psyimg->getdescription();
+  string s2=in2psyimg->getdescription();
+  string desc;
+  if(s1.compare(0,7,"concat:") == 0) s1.replace(0,7,"");
+  // came across a string that had 2 null terminators and didn't compare to same string with one null terminator
+  // so remove extra null terminators
+  size_t s1firstnull=s1.find_first_of('\0');
+  if(s1firstnull != string::npos) s1=s1.substr(0,s1firstnull+1); 
+
+  if(s1.size() == 0) desc="concat:unknown";
+  else desc="concat:"+s1;
+  if(s2.compare(0,7,"concat:") == 0) s2.replace(0,7,"");
+
+  // came across a string that had 2 null terminators and didn't compare to same string with one null terminator
+  // so remove extra null terminators
+  size_t s2firstnull=s2.find_first_of('\0');
+  if(s2firstnull != string::npos) s2=s2.substr(0,s2firstnull+1); 
+
+  if(s1 == s2) ; // if both images had same description don't append anything
+  else if(s2.size() == 0) desc.append(";unknown");
+  else desc.append(";").append(s2);
+  // leave description size limits to output file types
+  // take that back -- unlimited desc size caused segmentation fault with large cats
+  if(desc.size() > 256) desc=desc.substr(0,252)+"...";
+  setdescription(desc);
+
+// if spatial transform only deals with 2 dimensions (i.e. column 3 zeros) try to fix
+  threeDtransform *tdt1 = in1psyimg->getspatialtransform();
+  if(tdt1 != NULL) {
+    matrix4X4 oldmatrix1 = tdt1->getMatrix();
+    double col1magsqr=oldmatrix1.m.m11*oldmatrix1.m.m11 + oldmatrix1.m.m21*oldmatrix1.m.m21 + oldmatrix1.m.m31*oldmatrix1.m.m31 + oldmatrix1.m.m41*oldmatrix1.m.m41;
+    double col2magsqr=oldmatrix1.m.m12*oldmatrix1.m.m12 + oldmatrix1.m.m22*oldmatrix1.m.m22 + oldmatrix1.m.m32*oldmatrix1.m.m32 + oldmatrix1.m.m42*oldmatrix1.m.m42;
+    double col3magsqr=oldmatrix1.m.m13*oldmatrix1.m.m13 + oldmatrix1.m.m23*oldmatrix1.m.m23 + oldmatrix1.m.m33*oldmatrix1.m.m33 + oldmatrix1.m.m43*oldmatrix1.m.m43;
+    double col4magsqr=oldmatrix1.m.m14*oldmatrix1.m.m14 + oldmatrix1.m.m24*oldmatrix1.m.m24 + oldmatrix1.m.m34*oldmatrix1.m.m34 + oldmatrix1.m.m44*oldmatrix1.m.m44;
+    switch(catdim) {
+    case 0:
+      // x-dim
+    case 1:
+      // y-dim
+    case 3:
+      // i-dim usually time doesn't deal with mapping
+    default:
+      break;
+    case 2:
+      // z-dim
+      // most common
+      if(col3magsqr < 1e-16) {
+	// oldmatrix1 has zero magnitude 3rd column
+	threeDtransform *tdt2 = in2psyimg->getspatialtransform();
+	matrix4X4 oldmatrix2 = NULL;
+	double col4magsqr2 = 0;
+	if(tdt2 != NULL) {
+	  oldmatrix2 = tdt2->getMatrix();
+	  col4magsqr2=oldmatrix2.m.m14*oldmatrix2.m.m14 + oldmatrix2.m.m24*oldmatrix2.m.m24 + oldmatrix2.m.m34*oldmatrix2.m.m34 + oldmatrix2.m.m44*oldmatrix2.m.m44;
+	}
+	if((col4magsqr > 1e-16) && (col4magsqr2 > 1e-16)) {
+	  // assumes origin (column 4) in matrix reflects origin of the two different slices
+	  matrix4X4 newmatrix(oldmatrix1);
+	  newmatrix.m.m13 = (oldmatrix2.m.m14 - oldmatrix1.m.m14)/newres.x;
+	  newmatrix.m.m23 = (oldmatrix2.m.m24 - oldmatrix1.m.m24)/newres.y;
+	  newmatrix.m.m33 = (oldmatrix2.m.m34 - oldmatrix1.m.m34)/newres.z;
+cout<<"imgmath.cc:concatimgs:initconcatimgs:col 3 diff calculated=("<<newmatrix.m.m13<<','<<newmatrix.m.m23<<','<<newmatrix.m.m33<<")\n";
+	  setspatialtransform(new threeDtransform(newmatrix), getspatialtransformcode());
+	}
+	else if((col1magsqr > 1e-16) && (col2magsqr > 1e-16)) {
+	  // assume 3rd column perpendicular to the first 2 columns(i.e. the cross product of the first 2)
+	  matrix4X4 newmatrix(oldmatrix1);
+	  // orientation was backword so changed to yXx
+	  // same type of calc done for mosaic files in dicomfile2
+	  newmatrix.m.m13 = oldmatrix1.m.m22*oldmatrix1.m.m31 - oldmatrix1.m.m32*oldmatrix1.m.m21;
+	  newmatrix.m.m23 = oldmatrix1.m.m32*oldmatrix1.m.m11 - oldmatrix1.m.m12*oldmatrix1.m.m31;
+	  newmatrix.m.m33 = oldmatrix1.m.m12*oldmatrix1.m.m21 - oldmatrix1.m.m22*oldmatrix1.m.m11;
+cout<<"imgmath..cc:concatimgs:initconcatimgs:col 3 vector product calculated=("<<newmatrix.m.m13<<','<<newmatrix.m.m23<<','<<newmatrix.m.m33<<")\n";
+	  setspatialtransform(new threeDtransform(newmatrix), getspatialtransformcode());
+	}
+      }
+      break;
+    }
+  }
+
 }
 
 void concatimgs::copyblock(char *outbuff, int xorig, int yorig, int zorig,
@@ -782,4 +863,120 @@ void psyhistogram::chknfillbuff() {
     }
     inputpsyimg->freegetpixel();
   }
+}
+
+
+reverseplanes::reverseplanes(psyimg *psyimgptr, int maxnumpages)
+    : psypgbuff(psyimgptr, maxnumpages) {
+  // fix spatial transforms
+  psydims dim=psyimgptr->getsize();
+  matrix4X4 Factors(Identity); Factors.m.m33 = -1.0l;
+  xyzidouble newvoxorig;
+  // 3/14/2018 jtl - to shift origin newvoxorig.i was 0 should be 1.
+  newvoxorig.x=newvoxorig.y=0; newvoxorig.i=1.0l; newvoxorig.z = (dim.z-1);
+  
+  threeDtransform *tdt = getspatialtransform();
+  if(tdt != NULL) {
+    matrix4X4 oldmatrix = tdt->getMatrix();
+    xyzidouble newvoxoffset = oldmatrix * newvoxorig;
+    matrix4X4 newmatrix = oldmatrix * Factors;
+    newmatrix.m.m14 = newvoxoffset.x; newmatrix.m.m24 = newvoxoffset.y; newmatrix.m.m34 = newvoxoffset.z;
+    newmatrix.m.m44 = 1.0l;
+    setspatialtransform(new threeDtransform(newmatrix), getspatialtransformcode());
+  }
+  tdt = getspatialtransform2();
+  if(tdt != NULL) {
+    matrix4X4 oldmatrix = tdt->getMatrix();
+    xyzidouble newvoxoffset = oldmatrix * newvoxorig;
+    matrix4X4 newmatrix = oldmatrix * Factors;
+    newmatrix.m.m14 = newvoxoffset.x; newmatrix.m.m24 = newvoxoffset.y; newmatrix.m.m34 = newvoxoffset.z;
+    newmatrix.m.m44 = 1.0l;
+    setspatialtransform2(new threeDtransform(newmatrix), getspatialtransformcode2());
+  }
+};
+
+void reverseplanes::fillpage(char *buff, int z, int i)
+{
+// reverse z value
+  z=end.z-z+orig.z;
+  inputpsyimg->copyblock(buff, orig.x, orig.y, z, i,
+			 end.x, end.y, z, i, inc.x, inc.y, inc.z, inc.i,
+			 type);
+  return;
+}
+
+reversecols::reversecols(psyimg *psyimgptr, int maxnumpages)
+  : psypgbuff(psyimgptr, maxnumpages) {
+  // fix spatial transforms
+  psydims dim=psyimgptr->getsize();
+  matrix4X4 Factors(Identity); Factors.m.m11 = -1.0l;
+  xyzidouble newvoxorig;
+  // 3/14/2018 jtl - to shift origin newvoxorig.i was 0 should be 1.
+  newvoxorig.y=newvoxorig.z=0; newvoxorig.i=1.0l; newvoxorig.x = (dim.x-1);
+  threeDtransform *tdt = getspatialtransform();
+  if(tdt != NULL) {
+    matrix4X4 oldmatrix = tdt->getMatrix();
+    xyzidouble newvoxoffset = oldmatrix * newvoxorig;
+    matrix4X4 newmatrix = oldmatrix * Factors;
+    newmatrix.m.m14 = newvoxoffset.x; newmatrix.m.m24 = newvoxoffset.y; newmatrix.m.m34 = newvoxoffset.z;
+    newmatrix.m.m44 = 1.0l;
+    setspatialtransform(new threeDtransform(newmatrix), getspatialtransformcode());
+  }
+  tdt = getspatialtransform2();
+  if(tdt != NULL) {
+    matrix4X4 oldmatrix = tdt->getMatrix();
+    xyzidouble newvoxoffset = oldmatrix * newvoxorig;
+    matrix4X4 newmatrix = oldmatrix * Factors;
+    newmatrix.m.m14 = newvoxoffset.x; newmatrix.m.m24 = newvoxoffset.y; newmatrix.m.m34 = newvoxoffset.z;
+    newmatrix.m.m44 = 1.0l;
+    setspatialtransform2(new threeDtransform(newmatrix), getspatialtransformcode2());
+  }
+}
+
+void reversecols::fillpage(char *buff, int z, int i)
+{
+// set buffer to last x column
+  buff += offset(end.x, orig.y, z, i) - offset(orig.x, orig.y, z, i);
+// use negative increment to fill columns backwards
+  inputpsyimg->copyblock(buff, orig.x, orig.y, z, i,
+			 end.x, end.y, z, i, -inc.x, inc.y, inc.z, inc.i,
+			 type);
+  return;
+}
+
+switchrowsncols::switchrowsncols(psyimg *psyimgptr, int maxnumpages)
+{
+  psydims size=psyimgptr->getsize();
+  psydims orig=psyimgptr->getorig();
+  psyres res=psyimgptr->getres();
+  initpgbuff(psyimgptr,
+	     size.y, size.x, size.z, size.i,
+	     psyimgptr->gettype(),
+	     orig.y, orig.x, orig.z, orig.i, 0,
+	     res.y, res.x, res.z, res.i,
+	     psyimgptr->getwordres(),
+	     maxnumpages);
+
+  matrix4X4 Factors(Identity);
+  Factors.m.m11 = Factors.m.m22 = 0.0l;
+  Factors.m.m21 = Factors.m.m12 = 1.0l;
+
+  threeDtransform *tdt = getspatialtransform();
+  if(tdt != NULL) {
+    setspatialtransform(new threeDtransform(tdt->getMatrix() * Factors), getspatialtransformcode());
+  }
+  tdt = getspatialtransform2();
+  if(tdt != NULL) {
+    setspatialtransform2(new threeDtransform(tdt->getMatrix() * Factors), getspatialtransformcode2());
+  }
+}
+
+void switchrowsncols::fillpage(char *buff, int z, int i)
+{
+// fill incrementing y the fastest
+  inputpsyimg->copyblock(buff, orig.y, orig.x, z, i,
+			 end.y, end.x, z, i,
+			 inc.y, inc.x, inc.z, inc.i,
+			 type);
+  return;
 }

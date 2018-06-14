@@ -730,8 +730,19 @@ niftifile::niftifile(string fname, const char *mode, int ignore_valid)
       srow2.x=rawhdr.srow_y[0]; srow2.y=rawhdr.srow_y[1]; srow2.z=rawhdr.srow_y[2]; srow2.i=rawhdr.srow_y[3];
       xyzidouble srow3;
       srow3.x=rawhdr.srow_z[0]; srow3.y=rawhdr.srow_z[1]; srow3.z=rawhdr.srow_z[2]; srow3.i=rawhdr.srow_z[3];
+      // 03/16/2018 -- inverse fix
+      xyzidouble factors;
+      factors.x = 1e-3/res.x; factors.y = 1e-3/res.y; factors.z = 1e-3/res.z; factors.i = 1e-3;
+      //cout<<"res.x="<<res.x<<" res.y="<<res.y<<" res.x="<<res.z<<"\n";
+      //cout<<"factors.x="<<factors.x<<" factors.y="<<factors.y<<" factors.z="<<factors.z<<" factors.i="<<factors.i<<"\n";
+      srow1.x *= factors.x; srow1.y *= factors.y; srow1.z *= factors.z; srow1.i *= factors.i;
+      srow2.x *= factors.x; srow2.y *= factors.y; srow2.z *= factors.z; srow2.i *= factors.i;
+      srow3.x *= factors.x; srow3.y *= factors.y; srow3.z *= factors.z; srow3.i *= factors.i;
+
       threeDtransform *ts = new threeDtransform(srow1, srow2, srow3);
       setspatialtransform(ts, niftiformcode2spacecode(rawhdr.sform_code));
+      //cout<<"nifti.cc::niftifile::niftifile just set spatial transform from rawhdr\n";
+      //ts->write(&cout);
     }
     if(rawhdr.qform_code > 0.0) {
       cnuquatern q;
@@ -968,11 +979,17 @@ void niftifile::buildniftiheader(nifti_1_header *niftihdrptr) {
   threeDtransform *transform = getspatialtransform();
   if(transform != NULL) {
     xyzidouble row = transform->getRow1();
-    niftihdrptr->srow_x[0] = row.x; niftihdrptr->srow_x[1] = row.y; niftihdrptr->srow_x[2] = row.z; niftihdrptr->srow_x[3] = row.i;
+    // 12/27/2017 -- fixed Nifti transform to be scaled by pixdim res and Nifti units mm
+    xyzidouble factors;
+    factors.x = res.x*1e3; factors.y = res.y*1e3; factors.z = res.z*1e3; factors.i = 1e3;
+    //cout<<"factors.x="<<factors.x<<" factors.y="<<factors.y<<" factors.z="<<factors.z<<" factors.i="<<factors.i<<"\n";
+
+
+    niftihdrptr->srow_x[0] = row.x*factors.x; niftihdrptr->srow_x[1] = row.y*factors.y; niftihdrptr->srow_x[2] = row.z*factors.z; niftihdrptr->srow_x[3] = row.i*factors.i;
     row = transform->getRow2();
-    niftihdrptr->srow_y[0] = row.x; niftihdrptr->srow_y[1] = row.y; niftihdrptr->srow_y[2] = row.z; niftihdrptr->srow_y[3] = row.i;
+    niftihdrptr->srow_y[0] = row.x*factors.x; niftihdrptr->srow_y[1] = row.y*factors.y; niftihdrptr->srow_y[2] = row.z*factors.z; niftihdrptr->srow_y[3] = row.i*factors.i;
     row = transform->getRow3();
-    niftihdrptr->srow_z[0] = row.x; niftihdrptr->srow_z[1] = row.y; niftihdrptr->srow_z[2] = row.z; niftihdrptr->srow_z[3] = row.i;
+    niftihdrptr->srow_z[0] = row.x*factors.x; niftihdrptr->srow_z[1] = row.y*factors.y; niftihdrptr->srow_z[2] = row.z*factors.z; niftihdrptr->srow_z[3] = row.i*factors.i;
     niftihdrptr->sform_code=spacecode2niftiformcode(getspatialtransformcode());
   }
   transform = getspatialtransform2();
