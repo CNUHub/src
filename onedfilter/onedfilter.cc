@@ -1,6 +1,6 @@
 #include "psyhdr.h"
 #include "psyiofunctions.h"
-#include <math.h>
+#include "math.h"
 
 typedef unsigned long dimension;
 #define PI M_PI

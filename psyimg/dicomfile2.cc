@@ -47,6 +47,13 @@ const int IMAGE_ORIENTATION_PATIENT = 0x00200037;
 const int TEMPORAL_POSITION_IDENTIFIER = 0x00200100;
 const int REFERENCED_FILE_ID = 0x00041500;
 
+// tags to process SIE mosaic images
+const int IMAGE_TYPE=0x00080008;
+const int MANUFACTURER=0x00080070;
+const int SIE_NUMBER_OF_IMAGES_IN_MOSAIC=0x0019100A;
+const int SIE_CSA_PRIVATE_TAG_HEADER_TYPE_0019=0x00190008;
+const int SIE_CSA_PRIVATE_TAG_IDENTIFIER=0x00190010;
+
 char* vrModeNames[] = {
   "UNKNOWN_VR_MODE", "IMPLICIT_VR", "EXPLICIT_VR" };
 
@@ -711,6 +718,7 @@ DICOM_DataElement *buildDICOM_DataElement(char *data, psytype intype,
 dicomfile::dicomfile(string fname, psyimg *psyimgptr,
 		     psytype pixeltype)
   : rawfile(psyimgptr, pixeltype) {
+  cerr<<"dicomfile::dicomfileA\n";
   combinedFileSetPtr=NULL;
   psyopenfile(fname, "w", &imgfd);
   imgfilename=fname;
@@ -858,12 +866,16 @@ dicomfile::dicomfile(string fname, const char *mode) : rawfile(fname, mode) {
   char *keepSeriesInstanceUID = NULL;
 
   int imageNumber=-1;
+  int imagePositionFound=0;
   int firstImagePositionFound=0;
   int secondImagePositionFound=0;
+  double imageXPosition=0;
   double firstImageXPosition=0;
   double secondImageXPosition=0;
+  double imageYPosition=0;
   double firstImageYPosition=0;
   double secondImageYPosition=0;
+  double imageZPosition=0;
   double firstImageZPosition=0;
   double secondImageZPosition=0;
   int imageOrientationPatientFound=0;
@@ -874,6 +886,13 @@ dicomfile::dicomfile(string fname, const char *mode) : rawfile(fname, mode) {
   double yColumnCosine=0;
   double zColumnCosine=0;
   int changecase = psynochange;
+
+  string seriesDescription;
+
+  string manufacturer;
+  string imageType;
+  int mosaic_n_images = -1;
+  int mosaic_resliced = 0;
 
   string filename;
   while(moreElements) {
@@ -1031,17 +1050,18 @@ dicomfile::dicomfile(string fname, const char *mode) : rawfile(fname, mode) {
 	break;
       case IMAGE_POSITION:
 	readDicom_DataElementData(dde, &imgfd, swaptype);
-	if(imageNumber == 1) {
-	  if(sscanf(dde->data, "%lf\\%lf\\%lf",
-		    &firstImageXPosition, &firstImageYPosition, &firstImageZPosition) == 3) {
+        imagePositionFound = 1;
+	if(sscanf(dde->data, "%lf\\%lf\\%lf",
+		    &imageXPosition, &imageYPosition, &imageZPosition) == 3) {
+	  imagePositionFound = 1;
+	  if(imageNumber == 1) {
 	    firstImagePositionFound = 1;
+	    firstImageXPosition=imageXPosition; firstImageYPosition=imageYPosition; firstImageZPosition=imageZPosition;
 	  }
-	}
-	else if(imageNumber == 2) {
-	  if(sscanf(dde->data, "%lf\\%lf\\%lf",
-		    &secondImageXPosition, &secondImageYPosition, &secondImageZPosition) == 3) {
+	  else if(imageNumber == 2) {
 	    secondImagePositionFound = 1;
-	  }
+	    secondImageXPosition=imageXPosition; secondImageYPosition=imageYPosition; secondImageZPosition=imageZPosition;
+	  }  
 	}
 	break;
       case IMAGE_ORIENTATION_PATIENT:
@@ -1049,7 +1069,7 @@ dicomfile::dicomfile(string fname, const char *mode) : rawfile(fname, mode) {
 	if(! imageOrientationPatientFound ) {  // hopefully same orientation for all slices
 	  if(sscanf(dde->data, "%lf\\%lf\\%lf\\%lf\\%lf\\%lf",
 		    &xRowCosine, &yRowCosine, &zRowCosine, &xColumnCosine, &yColumnCosine, &zColumnCosine) == 6) {
-	    firstImagePositionFound = 1;
+	    imageOrientationPatientFound = 1;
 	  }
 	}
 	break;
@@ -1079,6 +1099,34 @@ dicomfile::dicomfile(string fname, const char *mode) : rawfile(fname, mode) {
 	  if(photometric_interpretation != NULL) TRIMSTRING(photometric_interpretation);
 	}
 	break;
+      case MANUFACTURER:
+	readDicom_DataElementData(dde, &imgfd, swaptype);
+	if(dde->storageType == psystring) {
+	  if(dde->data != NULL) {
+	    TRIMSTRING(dde->data);
+	    manufacturer=dde->data;
+	  }
+	}
+	break;
+      case IMAGE_TYPE:
+	readDicom_DataElementData(dde, &imgfd, swaptype);
+	if(dde->storageType == psystring) {
+	  if(dde->data != NULL) imageType=dde->data;
+	}
+	break;
+      case SERIES_DESCRIPTION:
+	readDicom_DataElementData(dde, &imgfd, swaptype);
+	if(dde->storageType == psystring) {
+	  if(dde->data != NULL) {
+	    TRIMSTRING(dde->data);
+	    seriesDescription=dde->data;
+	  }
+	}
+	break;
+      case SIE_NUMBER_OF_IMAGES_IN_MOSAIC:
+	readDicom_DataElementData(dde, &imgfd, swaptype);
+	type2int(dde->data, dde->storageType, (char *) &mosaic_n_images);
+	break;
       case RESCALE_INTERCEPT:
       case RESCALE_TYPE:
       default:
@@ -1096,9 +1144,52 @@ dicomfile::dicomfile(string fname, const char *mode) : rawfile(fname, mode) {
   if(rawData_dde != NULL) {
     // may be OW or OB - how to know?
     // base OW or OB on bitsAllocated or dimensions
-    if(bits_allocated <=0) ; // not found
+    if(bits_allocated < 1) {
+      // 10/04/2017 additional guess for storageType taken from iiV.io.DICOMImgFile.java
+      if((xdim * ydim * zdim * samplesPerPixel) >= rawData_dde->dataLength) rawData_dde->storageType=psychar; // OB
+      else rawData_dde->storageType=psyshort; // OW
+    }
     else if(bits_allocated <= 8) rawData_dde->storageType=psychar; // OB
     else if(bits_allocated <= 16) rawData_dde->storageType=psyshort; // OW
+
+    // 10/04/2017 additional check for signed type taken from iiV.io.DICOMImgFile.java
+    // assume if pixel_representation set (-1 is unset) it overrides signed/unsigned value representations
+    switch(pixel_representation) {
+    case 0:
+      // unsigned
+      switch(rawData_dde->storageType) {
+      case psychar:
+	rawData_dde->storageType=psyuchar;
+	break;
+      case psyshort:
+	rawData_dde->storageType=psyushort;
+	break;
+      case psyint:
+	rawData_dde->storageType=psyuint;
+	break;
+      default:
+	break;
+      }
+      break;
+    case 1:
+      // signed
+      switch(rawData_dde->storageType) {
+      case psyuchar:
+	rawData_dde->storageType=psychar;
+	break;
+      case psyushort:
+	rawData_dde->storageType=psyshort;
+	break;
+      case psyuint:
+	rawData_dde->storageType=psyint;
+	break;
+      default:
+	break;
+      }
+      break;
+    default:
+      break;
+    }
 
     idim = samplesPerPixel;
     if(photometric_interpretation != NULL) {
@@ -1132,9 +1223,74 @@ dicomfile::dicomfile(string fname, const char *mode) : rawfile(fname, mode) {
 	cerr<<"warning - ignoring non-implemented photometric interpretation=\""<<photometric_interpretation<< "\"\n";
       }
     }
+    if((mosaic_n_images > 1) && (mosaic_n_images < 2000)  && (manufacturer.find("SIEMENS") != string::npos) && (imageType.find("MOSAIC") != string::npos)) {
+      mosaic_resliced = 1;
+      //      cerr<<"warning - converting siemens mosaic image to 3d\n";
+      int mosaic_side_size=ceil(sqrt(mosaic_n_images));
+      //      cerr<<"mosaic_side_size="<<mosaic_side_size<<"\n";
+      int mosaic_xdim=xdim/mosaic_side_size;
+      int mosaic_ydim=ydim/mosaic_side_size;
+      //      cerr<<"mosaic_xdim="<<mosaic_xdim<<"\n";
+      //      cerr<<"mosaic_ydim="<<mosaic_ydim<<"\n";
 
+      // re-open this file as a raw file and transform mosaic to concatenated slices
+      psyimg *inrawfile = new rawfile(imgfilename, mode, xdim, ydim, zdim, idim,
+				      rawData_dde->storageType, 0, 0, 0, 0,
+				      rawData_dde->dataFileOffset,
+				      xres, yres, zres, ires, wres);
+      int in_xorig=0, in_yorig=0, in_zorig=0, in_iorig=0;
+      int in_xend=in_xorig+mosaic_xdim-1;
+      int in_yend=in_yorig+mosaic_ydim-1;
+      for(in_zorig=0; in_zorig<zdim; in_zorig++) {
+	for (int z=0; z<mosaic_n_images; z++, in_xorig+=mosaic_xdim, in_xend+=mosaic_xdim) {
+	  if(in_xend >= xdim) {
+	    in_xorig=0; in_xend=in_xorig+mosaic_xdim-1;
+	    in_yorig+=mosaic_ydim; in_yend+=mosaic_ydim;
+	  }
+
+	  psyimgblk *subregionptr = new psyimgblk(inrawfile, in_xorig, in_yorig, in_zorig, in_iorig, in_xend, in_yend, in_zorig, in_iorig, 1);
+	  if(combinedFileSetPtr==NULL) combinedFileSetPtr = subregionptr;
+	  else {
+	    combinedFileSetPtr = (psyimg *) new concatimgs(combinedFileSetPtr, (psyimg *) subregionptr);
+	  }
+	}
+      }
+      // mosaic order from inferior to superior change to superior to inferior
+      // note - this requires reversing 3rd row of spatial transform and shifting slice origin 
+      combinedFileSetPtr = (psyimg *) new reverseplanes(combinedFileSetPtr, mosaic_n_images);
+      // fix z slice position for reverse slices
+      //      cout<<"old imageZPosition="<<imageZPosition<<" zres="<<zres<<" mosaic_n_images="<<mosaic_n_images<<"\n";
+      //      imageZPosition += ((mosaic_n_images-1) * zres * 1e3);
+      //      cout<<"new imageZPosition="<<imageZPosition<<"\n";
+
+      // need to fix image position because siemen's mosaic top left calculation error
+      // siemens starts with center first image position then calculates top left based on whole mosaic size not image size
+      //      cerr<<"checking image postition\n";
+      if(imagePositionFound && imageOrientationPatientFound) {
+	//      cerr<<"res=("<<xres<<","<<yres<<","<<zres<<")\n";
+	//      cerr<<"xdim,ydim=("<<xdim<<","<<ydim<<")\n";
+	//      cerr<<"mosaic_xdim,mosaic_ydim=("<<mosaic_xdim<<","<<mosaic_ydim<<")\n";
+	double xfix = ((xdim - mosaic_xdim)/2)*(xres*1e3);
+	double yfix = ((ydim - mosaic_ydim)/2)*(yres*1e3);
+      //      cerr<<"xfix,yfix=("<<xfix<<","<<yfix<<")\n";
+      //      cerr<<"in image position=("<<imageXPosition<<","<<imageYPosition<<","<<imageZPosition<<")\n";
+      //      cerr<<"row cosine=("<<xRowCosine<<","<<yRowCosine<<","<<zRowCosine<<")\n";
+      //      cerr<<"col cosine=("<<xColumnCosine<<","<<yColumnCosine<<","<<zColumnCosine<<")\n";
+        imageXPosition += xRowCosine * xfix + xColumnCosine * yfix;
+	imageYPosition += yRowCosine * xfix + yColumnCosine * yfix;
+	imageZPosition += zRowCosine * xfix + zColumnCosine * yfix;
+	//      cerr <<"out image position=("<<imageXPosition<<","<<imageYPosition<<","<<imageZPosition<<")\n";
+      }
+      // now replace x & y dims with size of individual mosaic
+      xdim=mosaic_xdim; ydim=mosaic_ydim;
+      // zdim becomes number of mosaic slices
+      idim=zdim; zdim=mosaic_n_images;
+
+    } // end if((mosaic_n_images > 1) && (mosaic_n_images < 2000) ...)
     initpsyimg(xdim, ydim, zdim, idim, rawData_dde->storageType, 0, 0, 0, 0,
 	       rawData_dde->dataFileOffset, xres, yres, zres, ires, wres);
+
+    if(seriesDescription.length() > 1) setdescription(seriesDescription);
 
     // jtlee 04/02/13 try to determine transverse/sagittal/coronal
     if(imageOrientationPatientFound) {
@@ -1143,6 +1299,54 @@ dicomfile::dicomfile(string fname, const char *mode) : rawfile(fname, mode) {
 	else if( (fabs(xRowCosine) < 0.1) && (fabs(xColumnCosine) < 0.1) ) localorient=psysagittal;
 	else if( (fabs(yRowCosine) < 0.1) && (fabs(yColumnCosine) < 0.1) ) localorient=psycoronal;
 	if(localorient != psynoorient) setorient(localorient);
+
+	// jtlee 11/14/17 work on spatial transfrom matrix - not complete without two slice positions
+	// leaving 3rd column zeros to signify incompleteness
+	// concatimgs fills 3rd column
+	matrix4X4 spatialtmx(Zero);
+	// note- DICOM x and y axis reversed relative to Nifti
+	spatialtmx.m.m11= -xRowCosine; spatialtmx.m.m21= -yRowCosine; spatialtmx.m.m31= zRowCosine;
+	spatialtmx.m.m12= -xColumnCosine; spatialtmx.m.m22= -yColumnCosine; spatialtmx.m.m32= zColumnCosine;
+	if(mosaic_resliced == 1) {
+	  // mosaic file rebuilt as 3-d so need 3rd column
+	  // assume 3rd column perpendicular to first and second (i.e. cross product)
+	  // note - there is suppose to be a Siemen's Slice Normal Vector but I haven't found it in the header
+	  // note - also mosaic slices maybe ascending or descending and unfound Protacol Slice Number value should allow determination
+	  //        for now go by order that works for images I have
+	  // note - cross product order experimented with to get proper orientation displayed in iiV
+	  // mosaic order reversed above from inferior to superior change to superior to inferior
+	  spatialtmx.m.m13 = spatialtmx.m.m22*spatialtmx.m.m31 - spatialtmx.m.m32*spatialtmx.m.m21;
+	  spatialtmx.m.m23 = spatialtmx.m.m32*spatialtmx.m.m11 - spatialtmx.m.m12*spatialtmx.m.m31;
+	  spatialtmx.m.m33 = spatialtmx.m.m12*spatialtmx.m.m21 - spatialtmx.m.m22*spatialtmx.m.m11;
+
+	  // commented product would be for superior to inferior slices which would just produce the negative product from above
+	  //spatialtmx.m.m13 = spatialtmx.m.m21*spatialtmx.m.m32 - spatialtmx.m.m31*spatialtmx.m.m22;
+	  //spatialtmx.m.m23 = spatialtmx.m.m31*spatialtmx.m.m12 - spatialtmx.m.m11*spatialtmx.m.m32;
+	  //spatialtmx.m.m33 = spatialtmx.m.m11*spatialtmx.m.m22 - spatialtmx.m.m21*spatialtmx.m.m12;
+	  cout<<"dicomfile2.cc:dicomfile::dicomfile col 3 vector product calculated=("<<spatialtmx.m.m13<<','<<spatialtmx.m.m23<<','<<spatialtmx.m.m33<<")\n";
+	  if(imagePositionFound) {
+	    spatialtmx.m.m14 = (-imageXPosition*1e-3);
+	    spatialtmx.m.m24 = (-imageYPosition*1e-3);
+	    spatialtmx.m.m34 = (imageZPosition*1e-3);
+	    spatialtmx.m.m44 = 1.0;
+	    // reversing mosaic slices shifts origin to what was original voxel location (0,0,zdim-1)
+	    cout<<"dicomfile2.cc:dicomfile::dicomfile col 4 imagePosition =("<<spatialtmx.m.m14<<','<<spatialtmx.m.m24<<','<<spatialtmx.m.m34<<")\n";
+            cout<<" xres="<<xres<<" yres="<<yres<<" zres="<<zres<<"\n";
+	    spatialtmx.m.m14 -= spatialtmx.m.m13 * (zdim - 1) * zres;
+	    spatialtmx.m.m24 -= spatialtmx.m.m23 * (zdim - 1) * zres;
+	    spatialtmx.m.m34 -= spatialtmx.m.m33 * (zdim - 1) * zres;
+	    cout<<"dicomfile2.cc:dicomfile::dicomfile col 4 shifted imagePosition =("<<spatialtmx.m.m14<<','<<spatialtmx.m.m24<<','<<spatialtmx.m.m34<<")\n";
+	  }
+	}
+        else if(imagePositionFound) {
+          spatialtmx.m.m14 = (-imageXPosition*1e-3);
+          spatialtmx.m.m24 = (-imageYPosition*1e-3);
+          spatialtmx.m.m34 = (imageZPosition*1e-3);
+          spatialtmx.m.m44 = 1.0;
+	  // note column 3 left zeroed -- needs two slice positions be 3d left as basicly 2d
+	}
+	setspatialtransform(new threeDtransform(spatialtmx), scanner_anatomical_space);
+
     }
 
     if(idim != 1) {
@@ -1194,10 +1398,9 @@ void dicomfile::copyblock(char *outbuff, int xorig, int yorig, int zorig,
 			  int iorig, int xend, int yend, int zend, int iend,
 			  int xinc, int yinc, int zinc, int iinc,
 			  psytype pixeltype) {
-  if(combinedFileSetPtr != NULL)
-    combinedFileSetPtr->copyblock(outbuff, xorig, yorig, zorig, iorig,
-				  xend, yend, zend, iend,
-				  xinc, yinc, zinc, iinc, pixeltype);
+  if(combinedFileSetPtr != NULL)combinedFileSetPtr->copyblock(outbuff, xorig, yorig, zorig, iorig,
+							      xend, yend, zend, iend,
+							      xinc, yinc, zinc, iinc, pixeltype);
   else rawfile::copyblock(outbuff, xorig, yorig, zorig, iorig,
 			  xend, yend, zend, iend,
 			  xinc, yinc, zinc, iinc, pixeltype);

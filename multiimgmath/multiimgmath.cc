@@ -1,7 +1,7 @@
 #include "psyhdr.h"
 #include "psyiofunctions.h"
 #include "psytools.h"
-#include <math.h>
+#include "math.h"
 
 enum mathoperation { sumoperation=0,
 		     minoperation, maxoperation,

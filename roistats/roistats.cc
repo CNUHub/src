@@ -3,7 +3,8 @@
 
 /* Sort array a[] in place with values in dims[] also swapped to maintain
  same relative order */
-void shellsort(unsigned int n, double a[], psydims dims[]) {
+// 5/2/2018 renamed to not confuse with shellsort in psytools.cc
+void shellsort_w_pydims(unsigned int n, double a[], psydims dims[]) {
   // n = (input) size of arrays a[] and dims[]
   // a[] = (input/output) array to sort in place
   // dims[] = (input/output) array to order in place with the same
@@ -114,7 +115,7 @@ void topNtemplate::inittopNtemplate(psyimg *psyimgptr, int n, psyimg *templatept
 	  topValues[ncount] = dpixel;
 	  topLocations[ncount]=location;
 	  ncount++;
-	  if(ncount == topN) shellsort(topN, topValues, topLocations);
+	  if(ncount == topN) shellsort_w_pydims(topN, topValues, topLocations);
         }
 	else if(dpixel > topValues[0]) {
 	    // insert pixel into array dropping smallest

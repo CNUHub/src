@@ -1,6 +1,6 @@
 #include "psyhdr.h"
 #include "psyiofunctions.h"
-#include <math.h>
+#include "math.h"
 #include "psytools.h"
 #include "cnustats.h"
 #include <iomanip>
