@@ -1721,6 +1721,26 @@ DICOM_Tag tagList16[] = {
   DICOM_Tag(0xFFFEE00D, &UN, "Item Delimitation Item"),
   DICOM_Tag(0xFFFEE0DD, &UN, "Sequence Delimitation Item")
 };
+/* Sie private/CSA info handled elsewhere
+DICOM_Tag tagListCSA[] = {
+  DICOM_Tag(0x00291008, &OB, "SIE CSA Image Header Type"),
+  DICOM_Tag(0x00291009, &OB, "SIE CSA Image Header Version"),
+  DICOM_Tag(0x00291010, &OB, "SIE CSA Image Header Info"),
+  DICOM_Tag(0x00291018, &OB, "SIE CSA Series Header Type"),
+  DICOM_Tag(0x00291019, &OB, "SIE CSA Series Header Version"),
+  DICOM_Tag(0x00291020, &OB, "SIE CSA Series Header Info"),
+
+  DICOM_Tag(0x0019100A, &UN, "SIE CSA Number Of Images In Mosaic"),
+  DICOM_Tag(0x0019100B, &UN, "SIE CSA Slice Measurement Duration"),
+  DICOM_Tag(0x0019100C, &UN, "SIE CSA B_value"),
+  DICOM_Tag(0x0019100D, &UN, "SIE CSA Diffusion Directionality"),
+  DICOM_Tag(0x0019100E, &UN, "SIE CSA Diffusion Gradient Direction"),
+  DICOM_Tag(0x0019100F, &UN, "SIE CSA Gradient Mode"),
+  DICOM_Tag(0x00191027, &UN, "SIE CSA B_matrix"),
+  DICOM_Tag(0x00191028, &UN, "SIE CSA Bandwidth Per Pixel Phase Encode"),
+  DICOM_Tag(0xFFFEE0DD, &UN, "SIE CSA Sequence Delimitation Item")
+};
+*/
 int tagListLastGroupAndElement = 0xFFFEE0DD;
 
 DICOM_Tag *tagListList[] = {
@@ -1742,7 +1762,20 @@ DICOM_Tag* getDICOM_Tag(int groupNelement) {
       if(listGroupAndElement == tagListLastGroupAndElement) break;
     }
   }
-  char strptr[20 + 11 + 10];
+  char strptr[25 + 11 + 10]; // size for largest sprintf below
+  int group = (groupNelement & 0xFFFF0000) >> 16;
+  int element = groupNelement & 0x0000FFFF;
+  if( (group % 2) == 1 ) {
+    if(element == 0x10) {
+      sprintf(strptr, "%s 0x%08x", "Private Tag Identifier", groupNelement);
+      return new DICOM_Tag(groupNelement, &LO, strptr);
+    }
+    else if(element == 0x11) {
+      sprintf(strptr, "%s 0x%08x", "Private Tag Reservation", groupNelement);
+      return new DICOM_Tag(groupNelement, &LO, strptr);
+    }
+  }
+  //  char strptr[20 + 11 + 10];
   sprintf(strptr, "%s 0x%08x", "oh, oh, unknown tag", groupNelement);
   return new DICOM_Tag(groupNelement, &UN, strptr);
 }
