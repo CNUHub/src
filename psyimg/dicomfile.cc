@@ -327,7 +327,7 @@ DICOM_Tag tagList3[] = {
   DICOM_Tag(0x00181160, &SH, "Filter Type"),
   DICOM_Tag(0x00181161, &LO, "Type of Filters"),
   DICOM_Tag(0x00181162, &DS, "Intensifier Size"),
-  DICOM_Tag(0x00181164, &DS, "Imager Pixle Spacing"),
+  DICOM_Tag(0x00181164, &DS, "Imager Pixel Spacing"),
   DICOM_Tag(0x00181166, &CS, "Grid"),
   DICOM_Tag(0xFFFEE0DD, &UN, "Sequence Delimitation Item")
 };
