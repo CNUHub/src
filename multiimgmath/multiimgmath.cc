@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
   int across_dim= -1;
   mathoperation operation=sumoperation;
 // allocate a name list large enough to point to all input file names //
-  string *commandlinelist=new string[argc];
+  string commandlinelist[argc];
   string *namelist=commandlinelist;
 
 // parse input parameters

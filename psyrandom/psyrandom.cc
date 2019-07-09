@@ -1,6 +1,6 @@
 #include "psyhdr.h"
 #include <stdio.h>
-#include <float.h>
+#include <values.h>
 
 #ifdef RANDOM_UNDEFINED
 extern "C" {
@@ -23,8 +23,7 @@ const int IR1 = 12211;
 const int IR2 = 3791;
 const int NTAB = 32;
 const double NDIV = (1 + IMM1 / NTAB);
-//const double RNMX (1.0 - MINDOUBLE);
-const double RNMX (1.0 - DBL_MIN);
+const double RNMX (1.0 - MINDOUBLE);
 
 double ran2(long *idum) {
   // basic algorithm based on ran2 from "Numerical Recipes in C"

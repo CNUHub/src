@@ -83,7 +83,7 @@
 #include "read_ecat2.h"
 
 /* don't know where this system routine is declared */
-//extern void swab(char *from, char *to, int nbytes);
+extern void swab(char *from, char *to, int nbytes);
 
 
 /*---------------------------------------*/

@@ -510,12 +510,12 @@ int main(int argc, char *argv[])
   int weighted_sum=0;
 // allocate a file list large enough to point to all input file names //
   int numinputfiles=0;
-  string *commandlinefilelist=new string[argc];
+  string commandlinefilelist[argc];
   string *namelist=commandlinefilelist;
 // allocate a template list large enough to point to all input file names //
   int numtemplates=0;
   int remainder_templates=0;
-  string *commandlinetemplatelist=new string[argc];
+  string commandlinetemplatelist[argc];
   string *templatelist=commandlinetemplatelist;
 
 // parse input parameters
@@ -552,7 +552,7 @@ int main(int argc, char *argv[])
     else if((strcmp("-templatelist", argv[i])==0) && ((i+1)<argc))
       templatelistfile=argv[++i];
     else if((strcmp(argv[i],"-mincnt")==0)&&((i+1)<argc)) {
-      if(sscanf(argv[++i],"%d",&mincount) != 1) {
+      if(sscanf(argv[++i],"%ld",&mincount) != 1) {
 	cerr << argv[0] << ": error parsing minimum count: -min_count ";
 	cerr << argv[i] << '\n';
 	exit(1);

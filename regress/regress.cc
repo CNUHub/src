@@ -430,7 +430,7 @@ int main(int argc, char *argv[])
   int print_list=0;
   int across_idim=0;
 // allocate a name list large enough to point to all input file names //
-  string *commandlinelist=new string[argc];
+  string commandlinelist[argc];
   string *namelist=commandlinelist;
   string *templatelist = NULL;
 
@@ -479,7 +479,7 @@ int main(int argc, char *argv[])
       interpolate_value_set=1;
     }
     else if((strcmp(argv[i],"-mincnt")==0)&&((i+1)<argc)) {
-      if(sscanf(argv[++i],"%d",&mincount) != 1) {
+      if(sscanf(argv[++i],"%ld",&mincount) != 1) {
 	cerr << argv[0] << ": error parsing minimum count: -min_count ";
 	cerr << argv[i] << '\n';
 	exit(1);
